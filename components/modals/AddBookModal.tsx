@@ -4,7 +4,7 @@ import { X, Search, Loader2 } from "lucide-react"
 import { createBook } from "@/app/actions/books"
 import { toast } from "sonner"
 import { useState, useEffect } from "react"
-import { searchBooks, GoogleBook, getOpenLibraryCover } from "@/lib/google-books"
+import { searchBooks, GoogleBook, getCoverUrlSync } from "@/lib/google-books"
 import { RatingInput } from "@/components/ui/RatingInput"
 
 export function AddBookModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
@@ -15,6 +15,7 @@ export function AddBookModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   const [selectedBook, setSelectedBook] = useState<GoogleBook | null>(null)
   const [manualMode, setManualMode] = useState(false)
   const [status, setStatus] = useState("to_read")
+  const [coverUrl, setCoverUrl] = useState<string | null>(null)
 
   useEffect(() => {
     if (!searchQuery || searchQuery.length < 2) {
@@ -39,6 +40,12 @@ export function AddBookModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
     setLoading(true)
 
     const formData = new FormData(e.currentTarget)
+    
+    // Asegurar que la portada esté en el FormData
+    if (coverUrl) {
+      formData.set('cover_url', coverUrl)
+    }
+    
     const result = await createBook(formData)
 
     if (result.error) {
@@ -51,6 +58,7 @@ export function AddBookModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
       setSearchResults([])
       setManualMode(false)
       setStatus("to_read")
+      setCoverUrl(null)
     }
 
     setLoading(false)
@@ -59,6 +67,14 @@ export function AddBookModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   function selectBook(book: GoogleBook) {
     setSelectedBook(book)
     setSearchResults([])
+    
+    // Obtener la mejor portada disponible
+    const cover = getCoverUrlSync(book, 'L')
+    setCoverUrl(cover)
+  }
+
+  function getCoverPreview(book: GoogleBook): string | null {
+    return getCoverUrlSync(book, 'M')
   }
 
   return (
@@ -97,7 +113,7 @@ export function AddBookModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Busca por título o autor..."
+                    placeholder="Busca por título, autor o ISBN..."
                     className="input-elegant pl-12 pr-4"
                     autoFocus
                   />
@@ -115,7 +131,7 @@ export function AddBookModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                   </p>
                   <div className="grid gap-3 max-h-96 overflow-y-auto">
                     {searchResults.map((book) => {
-                      const cover = getOpenLibraryCover(book)
+                      const cover = getCoverPreview(book)
                       return (
                         <button
                           key={book.id}
@@ -124,7 +140,14 @@ export function AddBookModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                         >
                           <div className="w-16 h-24 flex-shrink-0 bg-cream-200 rounded overflow-hidden">
                             {cover ? (
-                              <img src={cover} alt={book.title} className="w-full h-full object-cover" />
+                              <img 
+                                src={cover} 
+                                alt={book.title} 
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none'
+                                }}
+                              />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-xs text-ink-500 p-2 text-center">
                                 Sin portada
@@ -138,11 +161,14 @@ export function AddBookModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                             <p className="text-sm text-ink-600 mb-2">
                               {book.authors.join(', ')}
                             </p>
-                            {book.pageCount && (
-                              <p className="text-xs text-ink-500">
-                                {book.pageCount} páginas
-                              </p>
-                            )}
+                            <div className="flex gap-3 text-xs text-ink-500">
+                              {book.pageCount && (
+                                <span>{book.pageCount} páginas</span>
+                              )}
+                              {book.isbn13 && (
+                                <span>ISBN: {book.isbn13}</span>
+                              )}
+                            </div>
                           </div>
                         </button>
                       )
@@ -169,12 +195,19 @@ export function AddBookModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
               {selectedBook && (
                 <div className="flex gap-4 p-4 bg-sage-50 rounded-lg border border-sage-200">
                   <div className="w-20 h-28 flex-shrink-0 bg-cream-200 rounded overflow-hidden">
-                    {getOpenLibraryCover(selectedBook) && (
+                    {coverUrl ? (
                       <img 
-                        src={getOpenLibraryCover(selectedBook)!} 
+                        src={coverUrl} 
                         alt={selectedBook.title} 
-                        className="w-full h-full object-cover" 
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none'
+                        }}
                       />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-xs text-ink-500 p-2 text-center">
+                        Sin portada
+                      </div>
                     )}
                   </div>
                   <div className="flex-1">
@@ -184,11 +217,17 @@ export function AddBookModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                     <p className="text-sm text-ink-600 mb-2">
                       {selectedBook.authors.join(', ')}
                     </p>
+                    {selectedBook.isbn13 && (
+                      <p className="text-xs text-ink-500 mb-2">
+                        ISBN: {selectedBook.isbn13}
+                      </p>
+                    )}
                     <button
                       type="button"
                       onClick={() => {
                         setSelectedBook(null)
                         setSearchQuery("")
+                        setCoverUrl(null)
                       }}
                       className="text-xs text-ink-500 hover:text-ink-700 underline"
                     >
@@ -256,7 +295,6 @@ export function AddBookModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                   />
                 </div>
 
-                {/* Campos de fecha condicionales */}
                 {status === 'reading' && (
                   <div>
                     <label className="block text-sm font-medium text-ink-700 mb-2">
@@ -298,7 +336,7 @@ export function AddBookModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                 <input 
                   type="hidden" 
                   name="cover_url" 
-                  value={selectedBook ? getOpenLibraryCover(selectedBook) || "" : ""} 
+                  value={coverUrl || ""} 
                 />
 
                 <div className="md:col-span-2">
@@ -328,6 +366,7 @@ export function AddBookModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                     if (selectedBook) {
                       setSelectedBook(null)
                       setSearchQuery("")
+                      setCoverUrl(null)
                     } else {
                       onClose()
                     }
