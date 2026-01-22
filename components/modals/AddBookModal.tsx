@@ -4,7 +4,7 @@ import { X, Search, Loader2 } from "lucide-react"
 import { createBook } from "@/app/actions/books"
 import { toast } from "sonner"
 import { useState, useEffect } from "react"
-import { searchBooks, getBookCover, type GoogleBook } from "@/lib/google-books"
+import { searchBooks, GoogleBook, getOpenLibraryCover } from "@/lib/google-books"
 import { RatingInput } from "@/components/ui/RatingInput"
 
 export function AddBookModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
@@ -14,6 +14,7 @@ export function AddBookModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   const [searchResults, setSearchResults] = useState<GoogleBook[]>([])
   const [selectedBook, setSelectedBook] = useState<GoogleBook | null>(null)
   const [manualMode, setManualMode] = useState(false)
+  const [status, setStatus] = useState("to_read")
 
   useEffect(() => {
     if (!searchQuery || searchQuery.length < 2) {
@@ -49,6 +50,7 @@ export function AddBookModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
       setSelectedBook(null)
       setSearchResults([])
       setManualMode(false)
+      setStatus("to_read")
     }
 
     setLoading(false)
@@ -113,7 +115,7 @@ export function AddBookModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                   </p>
                   <div className="grid gap-3 max-h-96 overflow-y-auto">
                     {searchResults.map((book) => {
-                      const cover = getBookCover(book)
+                      const cover = getOpenLibraryCover(book)
                       return (
                         <button
                           key={book.id}
@@ -167,9 +169,9 @@ export function AddBookModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
               {selectedBook && (
                 <div className="flex gap-4 p-4 bg-sage-50 rounded-lg border border-sage-200">
                   <div className="w-20 h-28 flex-shrink-0 bg-cream-200 rounded overflow-hidden">
-                    {getBookCover(selectedBook) && (
+                    {getOpenLibraryCover(selectedBook) && (
                       <img 
-                        src={getBookCover(selectedBook)!} 
+                        src={getOpenLibraryCover(selectedBook)!} 
                         alt={selectedBook.title} 
                         className="w-full h-full object-cover" 
                       />
@@ -229,7 +231,12 @@ export function AddBookModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                   <label className="block text-sm font-medium text-ink-700 mb-2">
                     Estado
                   </label>
-                  <select name="status" className="input-elegant">
+                  <select 
+                    name="status" 
+                    className="input-elegant"
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                  >
                     <option value="to_read">Por leer</option>
                     <option value="reading">Leyendo</option>
                     <option value="completed">Completado</option>
@@ -249,10 +256,49 @@ export function AddBookModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                   />
                 </div>
 
+                {/* Campos de fecha condicionales */}
+                {status === 'reading' && (
+                  <div>
+                    <label className="block text-sm font-medium text-ink-700 mb-2">
+                      Fecha de inicio
+                    </label>
+                    <input
+                      type="date"
+                      name="started_at"
+                      className="input-elegant"
+                    />
+                  </div>
+                )}
+
+                {status === 'completed' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-ink-700 mb-2">
+                        Fecha de inicio
+                      </label>
+                      <input
+                        type="date"
+                        name="started_at"
+                        className="input-elegant"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-ink-700 mb-2">
+                        Fecha de finalización
+                      </label>
+                      <input
+                        type="date"
+                        name="completed_at"
+                        className="input-elegant"
+                      />
+                    </div>
+                  </>
+                )}
+
                 <input 
                   type="hidden" 
                   name="cover_url" 
-                  value={selectedBook ? getBookCover(selectedBook) || "" : ""} 
+                  value={selectedBook ? getOpenLibraryCover(selectedBook) || "" : ""} 
                 />
 
                 <div className="md:col-span-2">

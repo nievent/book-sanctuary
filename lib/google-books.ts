@@ -4,13 +4,12 @@ export type GoogleBook = {
   authors: string[]
   description?: string
   pageCount?: number
-  imageLinks?: {
-    thumbnail?: string
-    smallThumbnail?: string
-  }
   publishedDate?: string
   categories?: string[]
+  isbn10?: string
+  isbn13?: string
 }
+
 
 export async function searchBooks(query: string): Promise<GoogleBook[]> {
   if (!query || query.length < 2) return []
@@ -26,29 +25,41 @@ export async function searchBooks(query: string): Promise<GoogleBook[]> {
 
     if (!data.items) return []
 
-    return data.items.map((item: any) => ({
-      id: item.id,
-      title: item.volumeInfo.title || 'Sin título',
-      authors: item.volumeInfo.authors || ['Autor desconocido'],
-      description: item.volumeInfo.description,
-      pageCount: item.volumeInfo.pageCount,
-      imageLinks: item.volumeInfo.imageLinks,
-      publishedDate: item.volumeInfo.publishedDate,
-      categories: item.volumeInfo.categories,
-    }))
+    return data.items.map((item: any) => {
+      const identifiers = item.volumeInfo.industryIdentifiers || []
+
+      const isbn13 = identifiers.find(
+        (id: any) => id.type === 'ISBN_13'
+      )?.identifier
+
+      const isbn10 = identifiers.find(
+        (id: any) => id.type === 'ISBN_10'
+      )?.identifier
+
+      return {
+        id: item.id,
+        title: item.volumeInfo.title || 'Sin título',
+        authors: item.volumeInfo.authors || ['Autor desconocido'],
+        description: item.volumeInfo.description,
+        pageCount: item.volumeInfo.pageCount,
+        publishedDate: item.volumeInfo.publishedDate,
+        categories: item.volumeInfo.categories,
+        isbn10,
+        isbn13,
+      }
+    })
+
   } catch (error) {
     console.error('Error searching books:', error)
     return []
   }
 }
+export function getOpenLibraryCover(
+  book: GoogleBook,
+  size: 'S' | 'M' | 'L' = 'L'
+): string | null {
+  const isbn = book.isbn13 || book.isbn10
+  if (!isbn) return null
 
-export function getBookCover(book: GoogleBook, size: 'small' | 'large' = 'large'): string | null {
-  if (!book.imageLinks) return null
-  
-  const url = size === 'large' 
-    ? book.imageLinks.thumbnail 
-    : book.imageLinks.smallThumbnail
-  
-  // Mejorar calidad de la imagen
-  return url?.replace('&edge=curl', '').replace('zoom=1', 'zoom=2') || null
+  return `https://covers.openlibrary.org/b/isbn/${isbn}-${size}.jpg`
 }
