@@ -73,10 +73,80 @@ export async function getDetailedStats() {
       return completedDate >= monthStart && completedDate <= monthEnd
     })
 
-    const pagesReadThisMonth = booksCompletedThisMonth.reduce(
-      (sum, b) => sum + (b.pages || 0), 
-      0
-    )
+    // Calcular páginas leídas considerando distribución temporal
+    let pagesReadThisMonth = 0
+    
+    completedBooks.forEach(b => {
+      if (!b.completed_at || !b.pages) return
+      
+      const completedDate = parseISO(b.completed_at)
+      
+      // Si el libro fue completado en este mes
+      if (completedDate >= monthStart && completedDate <= monthEnd) {
+        // Si tiene fecha de inicio, distribuir proporcionalmente
+        if (b.started_at) {
+          const startedDate = parseISO(b.started_at)
+          
+          // Calcular días totales de lectura
+          const totalDays = Math.ceil((completedDate.getTime() - startedDate.getTime()) / (1000 * 60 * 60 * 24))
+          
+          if (totalDays > 0) {
+            // Calcular qué días del mes se leyó
+            const readingStartInMonth = startedDate < monthStart ? monthStart : startedDate
+            const readingEndInMonth = completedDate > monthEnd ? monthEnd : completedDate
+            
+            const daysInThisMonth = Math.ceil((readingEndInMonth.getTime() - readingStartInMonth.getTime()) / (1000 * 60 * 60 * 24)) + 1
+            
+            // Páginas por día
+            const pagesPerDay = b.pages / totalDays
+            
+            // Páginas en este mes
+            pagesReadThisMonth += Math.round(pagesPerDay * daysInThisMonth)
+          } else {
+            // Si empezó y terminó el mismo día, contar todas las páginas
+            pagesReadThisMonth += b.pages
+          }
+        } else {
+          // Sin fecha de inicio, contar todas las páginas en el mes de finalización
+          pagesReadThisMonth += b.pages
+        }
+      }
+      // Si el libro se empezó en este mes pero se terminó después
+      else if (b.started_at) {
+        const startedDate = parseISO(b.started_at)
+        
+        if (startedDate >= monthStart && startedDate <= monthEnd && completedDate > monthEnd) {
+          // Calcular días totales de lectura
+          const totalDays = Math.ceil((completedDate.getTime() - startedDate.getTime()) / (1000 * 60 * 60 * 24))
+          
+          if (totalDays > 0) {
+            // Calcular días en este mes (desde inicio hasta fin de mes)
+            const daysInThisMonth = Math.ceil((monthEnd.getTime() - startedDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+            
+            // Páginas por día
+            const pagesPerDay = b.pages / totalDays
+            
+            // Páginas en este mes
+            pagesReadThisMonth += Math.round(pagesPerDay * daysInThisMonth)
+          }
+        }
+        // Si el libro se estaba leyendo durante este mes (empezó antes y terminó después)
+        else if (startedDate < monthStart && completedDate > monthEnd) {
+          const totalDays = Math.ceil((completedDate.getTime() - startedDate.getTime()) / (1000 * 60 * 60 * 24))
+          
+          if (totalDays > 0) {
+            // Todo el mes leyendo
+            const daysInMonth = Math.ceil((monthEnd.getTime() - monthStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
+            
+            // Páginas por día
+            const pagesPerDay = b.pages / totalDays
+            
+            // Páginas en este mes
+            pagesReadThisMonth += Math.round(pagesPerDay * daysInMonth)
+          }
+        }
+      }
+    })
 
     // Calcular días promedio para completar libros este mes
     const booksWithDatesThisMonth = booksCompletedThisMonth.filter(
@@ -206,17 +276,17 @@ export async function getDetailedStats() {
   
   books.forEach(book => {
     // Limpiar y dividir el título en palabras
-    const words = book.title
+    const words: string[] = book.title
       .toLowerCase()
       .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()«»""''¿?¡!]/g, '') // Quitar puntuación
       .split(/\s+/) // Dividir por espacios
-      .filter(word => 
+      .filter((word: string) => 
         word.length > 2 && // Mínimo 3 caracteres
         !stopWords.has(word) && // No es stop word
         !/^\d+$/.test(word) // No es solo números
       )
 
-    words.forEach(word => {
+    words.forEach((word: string) => {
       const count = wordCount.get(word) || 0
       wordCount.set(word, count + 1)
     })
@@ -240,13 +310,61 @@ export async function getDetailedStats() {
   const projectedYearEnd = Math.round(booksThisYear + projectedBooksRestOfYear)
 
   // Páginas este mes (ya tenemos startOfCurrentMonth definido arriba)
-  const pagesThisMonth = completedBooks
-    .filter(b => {
-      if (!b.completed_at) return false
-      const completedDate = parseISO(b.completed_at)
-      return completedDate >= startOfCurrentMonth && completedDate <= now
-    })
-    .reduce((sum, b) => sum + (b.pages || 0), 0)
+  // Distribuir proporcionalmente según días de lectura
+  let pagesThisMonth = 0
+  
+  completedBooks.forEach(b => {
+    if (!b.completed_at || !b.pages) return
+    
+    const completedDate = parseISO(b.completed_at)
+    
+    // Si el libro fue completado este mes
+    if (completedDate >= startOfCurrentMonth && completedDate <= now) {
+      if (b.started_at) {
+        const startedDate = parseISO(b.started_at)
+        const totalDays = Math.ceil((completedDate.getTime() - startedDate.getTime()) / (1000 * 60 * 60 * 24))
+        
+        if (totalDays > 0) {
+          const readingStartInMonth = startedDate < startOfCurrentMonth ? startOfCurrentMonth : startedDate
+          const daysInThisMonth = Math.ceil((completedDate.getTime() - readingStartInMonth.getTime()) / (1000 * 60 * 60 * 24)) + 1
+          const pagesPerDay = b.pages / totalDays
+          pagesThisMonth += Math.round(pagesPerDay * daysInThisMonth)
+        } else {
+          pagesThisMonth += b.pages
+        }
+      } else {
+        pagesThisMonth += b.pages
+      }
+    }
+    // Si el libro se está leyendo (empezó este mes o antes, aún no terminado o terminado después)
+    else if (b.started_at) {
+      const startedDate = parseISO(b.started_at)
+      
+      // Empezó este mes pero no ha terminado aún o terminó después
+      if (startedDate >= startOfCurrentMonth && startedDate <= now) {
+        // Si ya terminó (después de este mes)
+        if (b.status === 'completed' && completedDate > now) {
+          const totalDays = Math.ceil((completedDate.getTime() - startedDate.getTime()) / (1000 * 60 * 60 * 24))
+          if (totalDays > 0) {
+            const daysInThisMonth = Math.ceil((now.getTime() - startedDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+            const pagesPerDay = b.pages / totalDays
+            pagesThisMonth += Math.round(pagesPerDay * daysInThisMonth)
+          }
+        }
+      }
+      // Empezó antes de este mes y aún no terminó o terminó después
+      else if (startedDate < startOfCurrentMonth) {
+        if (b.status === 'completed' && completedDate > endOfCurrentMonth) {
+          const totalDays = Math.ceil((completedDate.getTime() - startedDate.getTime()) / (1000 * 60 * 60 * 24))
+          if (totalDays > 0) {
+            const daysInMonth = Math.ceil((endOfCurrentMonth.getTime() - startOfCurrentMonth.getTime()) / (1000 * 60 * 60 * 24)) + 1
+            const pagesPerDay = b.pages / totalDays
+            pagesThisMonth += Math.round(pagesPerDay * daysInMonth)
+          }
+        }
+      }
+    }
+  })
 
   // Proyección de páginas para fin de mes
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
@@ -279,18 +397,38 @@ export async function getDetailedStats() {
 
   // ============== MEJORES LIBROS ==============
   
-  // Libro del mes actual (mejor valorado completado este mes)
-  const booksThisMonth = completedBooks.filter(b => {
-    if (!b.completed_at || b.rating === null) return false
-    const completedDate = parseISO(b.completed_at)
-    return completedDate >= startOfCurrentMonth && completedDate <= endOfCurrentMonth
-  })
-  
-  const bookOfMonth = booksThisMonth.length > 0
-    ? booksThisMonth.reduce((best, current) => 
-        (current.rating || 0) > (best.rating || 0) ? current : best
-      )
-    : null
+  // Generar datos para los últimos 6 meses
+  const monthlyBestBooks = months.map(month => {
+    const monthStart = startOfMonth(month)
+    const monthEnd = endOfMonth(month)
+    
+    const booksThisMonth = completedBooks.filter(b => {
+      if (!b.completed_at || b.rating === null) return false
+      const completedDate = parseISO(b.completed_at)
+      return completedDate >= monthStart && completedDate <= monthEnd
+    })
+    
+    const bestBook = booksThisMonth.length > 0
+      ? booksThisMonth.reduce((best, current) => 
+          (current.rating || 0) > (best.rating || 0) ? current : best
+        )
+      : null
+
+    return {
+      month: format(month, 'MMMM', { locale: es }),
+      year: month.getFullYear(),
+      book: bestBook ? {
+        id: bestBook.id,
+        title: bestBook.title,
+        author: bestBook.author,
+        rating: bestBook.rating!,
+        pages: bestBook.pages,
+        cover_url: bestBook.cover_url,
+        completed_at: bestBook.completed_at!,
+        notes: bestBook.notes,
+      } : null
+    }
+  }).reverse() // Invertir para que el más reciente sea primero
 
   // Libro del año (mejor valorado completado este año)
   const booksThisYearWithRating = completedBooks.filter(b => {
@@ -353,16 +491,7 @@ export async function getDetailedStats() {
       totalPagesRead,
     },
     bestBooks: {
-      bookOfMonth: bookOfMonth ? {
-        id: bookOfMonth.id,
-        title: bookOfMonth.title,
-        author: bookOfMonth.author,
-        rating: bookOfMonth.rating!,
-        pages: bookOfMonth.pages,
-        cover_url: bookOfMonth.cover_url,
-        completed_at: bookOfMonth.completed_at!,
-        notes: bookOfMonth.notes,
-      } : null,
+      monthlyBooks: monthlyBestBooks,
       bookOfYear: bookOfYear ? {
         id: bookOfYear.id,
         title: bookOfYear.title,

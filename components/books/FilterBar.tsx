@@ -1,13 +1,15 @@
 "use client"
 
-import { SlidersHorizontal, ArrowUpDown } from "lucide-react"
+import { SlidersHorizontal, ArrowUpDown, Search, X } from "lucide-react"
 import { useState } from "react"
 
 export type FilterBarProps = {
   onFilterChange: (filter: string) => void
   onSortChange: (sort: string) => void
+  onSearchChange: (search: string) => void
   currentFilter: string
   currentSort: string
+  currentSearch: string
   stats: {
     total: number
     reading: number
@@ -18,9 +20,11 @@ export type FilterBarProps = {
 
 export function FilterBar({ 
   onFilterChange, 
-  onSortChange, 
+  onSortChange,
+  onSearchChange,
   currentFilter, 
   currentSort,
+  currentSearch,
   stats 
 }: FilterBarProps) {
   const [showSortMenu, setShowSortMenu] = useState(false)
@@ -46,8 +50,33 @@ export function FilterBar({
     return sortOptions.find(opt => opt.id === currentSort)?.label || 'Ordenar por'
   }
 
+  const handleClearSearch = () => {
+    onSearchChange('')
+  }
+
   return (
     <div className="space-y-4">
+      {/* Buscador */}
+      <div className="relative">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-400" />
+        <input
+          type="text"
+          value={currentSearch}
+          onChange={(e) => onSearchChange(e.target.value)}
+          placeholder="Buscar por título o autor..."
+          className="w-full pl-12 pr-12 py-3 border border-ink-200 rounded-lg text-ink-800 placeholder:text-ink-400 focus:outline-none focus:border-sage-400 focus:ring-2 focus:ring-sage-100 transition-all"
+        />
+        {currentSearch && (
+          <button
+            onClick={handleClearSearch}
+            className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-400 hover:text-ink-600 transition-colors"
+            title="Limpiar búsqueda"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
+      </div>
+
       {/* Filtros por estado */}
       <div className="flex items-center gap-3 overflow-x-auto pb-2">
         <div className="flex items-center gap-2 text-ink-600 flex-shrink-0">
@@ -128,6 +157,22 @@ export function FilterBar({
           )}
         </div>
       </div>
+
+      {/* Indicador de resultados de búsqueda */}
+      {currentSearch && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-sage-50 rounded-lg border border-sage-200">
+          <Search className="w-4 h-4 text-sage-700" />
+          <p className="text-sm text-sage-700">
+            Buscando: <strong>"{currentSearch}"</strong>
+          </p>
+          <button
+            onClick={handleClearSearch}
+            className="ml-auto text-sm text-sage-600 hover:text-sage-800 underline"
+          >
+            Limpiar
+          </button>
+        </div>
+      )}
     </div>
   )
 }

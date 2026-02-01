@@ -1,6 +1,6 @@
 "use client"
 
-import { Star, Calendar, BookOpen, Award, TrendingUp } from "lucide-react"
+import { Star, Calendar, BookOpen, Award, TrendingUp, ChevronLeft, ChevronRight } from "lucide-react"
 import { useState } from "react"
 
 type BookOfPeriod = {
@@ -14,8 +14,14 @@ type BookOfPeriod = {
   notes: string | null
 }
 
+type MonthlyBook = {
+  month: string
+  year: number
+  book: BookOfPeriod | null
+}
+
 type BestBooksData = {
-  bookOfMonth: BookOfPeriod | null
+  monthlyBooks: MonthlyBook[]
   bookOfYear: BookOfPeriod | null
   topRatedAllTime: BookOfPeriod | null
   currentMonth: string
@@ -24,15 +30,33 @@ type BestBooksData = {
 
 export function BestBooks({ data }: { data: BestBooksData }) {
   const [selectedBook, setSelectedBook] = useState<'month' | 'year' | 'alltime'>('month')
+  const [monthIndex, setMonthIndex] = useState(0) // 0 = mes actual, 1 = mes anterior, etc.
+
+  const currentMonthData = data.monthlyBooks[monthIndex]
 
   const getSelectedBookData = () => {
     switch (selectedBook) {
       case 'month':
-        return { book: data.bookOfMonth, title: `Libro del Mes - ${data.currentMonth}`, icon: Calendar, color: 'from-blue-500 to-blue-700' }
+        return { 
+          book: currentMonthData?.book || null, 
+          title: `Libro del Mes - ${currentMonthData?.month || data.currentMonth}`, 
+          icon: Calendar, 
+          color: 'from-blue-500 to-blue-700' 
+        }
       case 'year':
-        return { book: data.bookOfYear, title: `Libro del Año ${data.currentYear}`, icon: Award, color: 'from-amber-500 to-amber-700' }
+        return { 
+          book: data.bookOfYear, 
+          title: `Libro del Año ${data.currentYear}`, 
+          icon: Award, 
+          color: 'from-amber-500 to-amber-700' 
+        }
       case 'alltime':
-        return { book: data.topRatedAllTime, title: 'Mejor Valorado de Todos', icon: TrendingUp, color: 'from-purple-500 to-purple-700' }
+        return { 
+          book: data.topRatedAllTime, 
+          title: 'Mejor Valorado de Todos', 
+          icon: TrendingUp, 
+          color: 'from-purple-500 to-purple-700' 
+        }
     }
   }
 
@@ -46,6 +70,21 @@ export function BestBooks({ data }: { data: BestBooksData }) {
       month: 'long', 
       year: 'numeric' 
     })
+  }
+
+  const canGoPrevious = monthIndex < data.monthlyBooks.length - 1
+  const canGoNext = monthIndex > 0
+
+  const handlePreviousMonth = () => {
+    if (canGoPrevious) {
+      setMonthIndex(monthIndex + 1)
+    }
+  }
+
+  const handleNextMonth = () => {
+    if (canGoNext) {
+      setMonthIndex(monthIndex - 1)
+    }
   }
 
   return (
@@ -69,7 +108,7 @@ export function BestBooks({ data }: { data: BestBooksData }) {
         >
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4" />
-            Este Mes
+            Por Mes
           </div>
         </button>
 
@@ -101,6 +140,46 @@ export function BestBooks({ data }: { data: BestBooksData }) {
           </div>
         </button>
       </div>
+
+      {/* Navegación de meses (solo visible cuando está en modo "month") */}
+      {selectedBook === 'month' && data.monthlyBooks.length > 0 && (
+        <div className="flex items-center justify-between mb-6 p-3 bg-blue-100 rounded-lg border border-blue-300">
+          <button
+            onClick={handlePreviousMonth}
+            disabled={!canGoPrevious}
+            className={`p-2 rounded-lg transition-colors ${
+              canGoPrevious 
+                ? 'hover:bg-blue-200 text-blue-700' 
+                : 'text-blue-300 cursor-not-allowed'
+            }`}
+            title="Mes anterior"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+
+          <div className="text-center">
+            <p className="text-sm font-medium text-blue-900">
+              {currentMonthData?.month || data.currentMonth}
+            </p>
+            <p className="text-xs text-blue-600">
+              {currentMonthData?.year || data.currentYear}
+            </p>
+          </div>
+
+          <button
+            onClick={handleNextMonth}
+            disabled={!canGoNext}
+            className={`p-2 rounded-lg transition-colors ${
+              canGoNext 
+                ? 'hover:bg-blue-200 text-blue-700' 
+                : 'text-blue-300 cursor-not-allowed'
+            }`}
+            title="Mes siguiente"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+      )}
 
       {/* Libro destacado */}
       {selected.book ? (
@@ -159,7 +238,7 @@ export function BestBooks({ data }: { data: BestBooksData }) {
                       <Star 
                         key={i}
                         className={`w-6 h-6 ${
-                          i < selected.book.rating / 2
+                          i < selected.book!.rating / 2
                             ? 'fill-amber-400 text-amber-400' 
                             : 'text-ink-200'
                         }`}
@@ -216,7 +295,7 @@ export function BestBooks({ data }: { data: BestBooksData }) {
             <Award className="w-10 h-10 text-amber-600" />
           </div>
           <h4 className="text-xl font-serif text-ink-900 mb-2">
-            {selectedBook === 'month' && `Aún no has completado libros en ${data.currentMonth}`}
+            {selectedBook === 'month' && `No hay libros completados en ${currentMonthData?.month || data.currentMonth}`}
             {selectedBook === 'year' && `Aún no has completado libros en ${data.currentYear}`}
             {selectedBook === 'alltime' && 'Aún no tienes libros valorados'}
           </h4>
@@ -229,21 +308,24 @@ export function BestBooks({ data }: { data: BestBooksData }) {
       )}
 
       {/* Resumen de todos los períodos */}
-      {(data.bookOfMonth || data.bookOfYear || data.topRatedAllTime) && (
+      {(currentMonthData?.book || data.bookOfYear || data.topRatedAllTime) && (
         <div className="mt-6 grid grid-cols-3 gap-3">
-          <div className={`p-3 rounded-lg border-2 text-center transition-all ${
-            selectedBook === 'month' 
-              ? 'bg-blue-100 border-blue-400' 
-              : 'bg-white border-blue-200 hover:border-blue-400'
-          }`}>
+          <div 
+            className={`p-3 rounded-lg border-2 text-center transition-all cursor-pointer ${
+              selectedBook === 'month' 
+                ? 'bg-blue-100 border-blue-400' 
+                : 'bg-white border-blue-200 hover:border-blue-400'
+            }`}
+            onClick={() => setSelectedBook('month')}
+          >
             <p className="text-xs text-ink-600 mb-1">Este mes</p>
-            {data.bookOfMonth ? (
+            {currentMonthData?.book ? (
               <>
                 <p className="text-2xl font-bold text-blue-700">
-                  {data.bookOfMonth.rating.toFixed(1)}
+                  {currentMonthData.book.rating.toFixed(1)}
                 </p>
                 <p className="text-xs text-ink-500 truncate">
-                  {data.bookOfMonth.title}
+                  {currentMonthData.book.title}
                 </p>
               </>
             ) : (
@@ -251,11 +333,14 @@ export function BestBooks({ data }: { data: BestBooksData }) {
             )}
           </div>
 
-          <div className={`p-3 rounded-lg border-2 text-center transition-all ${
-            selectedBook === 'year' 
-              ? 'bg-amber-100 border-amber-400' 
-              : 'bg-white border-amber-200 hover:border-amber-400'
-          }`}>
+          <div 
+            className={`p-3 rounded-lg border-2 text-center transition-all cursor-pointer ${
+              selectedBook === 'year' 
+                ? 'bg-amber-100 border-amber-400' 
+                : 'bg-white border-amber-200 hover:border-amber-400'
+            }`}
+            onClick={() => setSelectedBook('year')}
+          >
             <p className="text-xs text-ink-600 mb-1">Este año</p>
             {data.bookOfYear ? (
               <>
@@ -271,11 +356,14 @@ export function BestBooks({ data }: { data: BestBooksData }) {
             )}
           </div>
 
-          <div className={`p-3 rounded-lg border-2 text-center transition-all ${
-            selectedBook === 'alltime' 
-              ? 'bg-purple-100 border-purple-400' 
-              : 'bg-white border-purple-200 hover:border-purple-400'
-          }`}>
+          <div 
+            className={`p-3 rounded-lg border-2 text-center transition-all cursor-pointer ${
+              selectedBook === 'alltime' 
+                ? 'bg-purple-100 border-purple-400' 
+                : 'bg-white border-purple-200 hover:border-purple-400'
+            }`}
+            onClick={() => setSelectedBook('alltime')}
+          >
             <p className="text-xs text-ink-600 mb-1">Mejor valorado</p>
             {data.topRatedAllTime ? (
               <>

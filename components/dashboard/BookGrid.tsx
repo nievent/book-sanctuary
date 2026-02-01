@@ -31,12 +31,24 @@ type BookStats = {
 export function BookGrid({ books, stats }: { books: Book[], stats: BookStats | null }) {
   const [filter, setFilter] = useState('all')
   const [sort, setSort] = useState('date_desc')
+  const [search, setSearch] = useState('')
 
-  // Filtrar libros
+  // Filtrar por búsqueda
+  const searchedBooks = useMemo(() => {
+    if (!search.trim()) return books
+    
+    const searchLower = search.toLowerCase().trim()
+    return books.filter(book => 
+      book.title.toLowerCase().includes(searchLower) ||
+      book.author.toLowerCase().includes(searchLower)
+    )
+  }, [books, search])
+
+  // Filtrar por estado
   const filteredBooks = useMemo(() => {
-    if (filter === 'all') return books
-    return books.filter(book => book.status === filter)
-  }, [books, filter])
+    if (filter === 'all') return searchedBooks
+    return searchedBooks.filter(book => book.status === filter)
+  }, [searchedBooks, filter])
 
   // Ordenar libros
   const sortedBooks = useMemo(() => {
@@ -72,44 +84,78 @@ export function BookGrid({ books, stats }: { books: Book[], stats: BookStats | n
 
   return (
     <div className="space-y-8">
-      {/* Barra de filtros */}
+      {/* Barra de filtros con búsqueda */}
       <FilterBar
         onFilterChange={setFilter}
         onSortChange={setSort}
+        onSearchChange={setSearch}
         currentFilter={filter}
         currentSort={sort}
+        currentSearch={search}
         stats={stats}
       />
 
       {/* Grid de libros */}
       {sortedBooks.length > 0 ? (
-        <div className="books-grid">
-          {sortedBooks.map((book, i) => (
-            <div 
-              key={book.id}
-              className="animate-in"
-              style={{ animationDelay: `${i * 50}ms` }}
-            >
-              <BookCard book={book} />
-            </div>
-          ))}
-        </div>
+        <>
+          {/* Contador de resultados */}
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-ink-600">
+              {sortedBooks.length === books.length ? (
+                <>Mostrando <strong>{sortedBooks.length}</strong> {sortedBooks.length === 1 ? 'libro' : 'libros'}</>
+              ) : (
+                <>
+                  Mostrando <strong>{sortedBooks.length}</strong> de <strong>{books.length}</strong> libros
+                  {search && ` para "${search}"`}
+                </>
+              )}
+            </p>
+          </div>
+
+          <div className="books-grid">
+            {sortedBooks.map((book, i) => (
+              <div 
+                key={book.id}
+                className="animate-in"
+                style={{ animationDelay: `${i * 50}ms` }}
+              >
+                <BookCard book={book} />
+              </div>
+            ))}
+          </div>
+        </>
       ) : (
         <div className="card text-center py-16">
           <div className="max-w-md mx-auto">
             <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-sage-100 flex items-center justify-center">
               <svg className="w-10 h-10 text-sage-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                {search ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                )}
               </svg>
             </div>
             <h3 className="text-heading-3 font-serif text-ink-900 mb-3">
-              No hay libros {filter !== 'all' ? 'en esta categoría' : ''}
+              {search ? `No se encontraron resultados para "${search}"` : 'No hay libros'}
+              {!search && filter !== 'all' && ' en esta categoría'}
             </h3>
             <p className="text-body text-ink-600">
-              {filter !== 'all' 
-                ? 'Intenta cambiar los filtros para ver más libros'
-                : 'Comienza añadiendo tu primer libro'
-              }
+              {search ? (
+                <>
+                  Intenta con otros términos de búsqueda o{' '}
+                  <button 
+                    onClick={() => setSearch('')}
+                    className="text-sage-600 hover:text-sage-700 underline font-medium"
+                  >
+                    limpia el filtro
+                  </button>
+                </>
+              ) : filter !== 'all' ? (
+                'Intenta cambiar los filtros para ver más libros'
+              ) : (
+                'Comienza añadiendo tu primer libro'
+              )}
             </p>
           </div>
         </div>
