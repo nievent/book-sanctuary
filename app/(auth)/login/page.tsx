@@ -30,7 +30,6 @@ export default function AuthPage() {
         }
       }
     } catch (error) {
-      toast.error("Algo salió mal. Inténtalo de nuevo")
     } finally {
       setLoading(false)
     }

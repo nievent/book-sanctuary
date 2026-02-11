@@ -261,7 +261,7 @@ export async function getDetailedStats() {
   
   // Palabras a ignorar (stop words en español)
   const stopWords = new Set([
-    'el', 'la', 'de', 'que', 'y', 'a', 'en', 'un', 'una', 'los', 'las',
+    'el', 'la', 'de', 'que', 'y', 'a', 'en', 'un', 'una', 'los', 'las', 'edición', 'ilustrada',
     'del', 'al', 'por', 'para', 'con', 'sin', 'sobre', 'entre', 'hasta',
     'desde', 'durante', 'mediante', 'contra', 'según', 'bajo', 'tras',
     'es', 'son', 'era', 'fue', 'ha', 'han', 'he', 'ser', 'estar', 'tener',
