@@ -5,6 +5,10 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Book Sanctuary - Tu refugio literario personal",
   description: "Organiza tu biblioteca, trackea tu progreso y descubre tu próxima gran lectura",
+    icons: {
+    icon: '/favicon.png',         
+    apple: '/favicon.png',     
+  },
 };
 
 export default function RootLayout({
