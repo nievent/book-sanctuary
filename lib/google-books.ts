@@ -13,71 +13,50 @@ export type GoogleBook = {
   googleImageLink?: string
 }
 
-// ─── Caché en sesión ──────────────────────────────────────────────────────────
+// ─── Caché ────────────────────────────────────────────────────────────────────
 const searchCache = new Map<string, { results: GoogleBook[]; ts: number }>()
-const CACHE_TTL = 5 * 60 * 1000 // 5 min
+const CACHE_TTL = 5 * 60 * 1000
 
 function getCached(key: string): GoogleBook[] | null {
   const entry = searchCache.get(key)
   if (!entry) return null
-  if (Date.now() - entry.ts > CACHE_TTL) {
-    searchCache.delete(key)
-    return null
-  }
+  if (Date.now() - entry.ts > CACHE_TTL) { searchCache.delete(key); return null }
   return entry.results
 }
 
 function setCache(key: string, results: GoogleBook[]) {
   if (searchCache.size >= 30) {
-    const firstKey = searchCache.keys().next().value
-    if (firstKey) searchCache.delete(firstKey)
+    const first = searchCache.keys().next().value
+    if (first) searchCache.delete(first)
   }
   searchCache.set(key, { results, ts: Date.now() })
 }
 
-// ─── Mejorar calidad de portada de Google Books ───────────────────────────────
-//
-// La API devuelve URLs con zoom=1 (128px). Podemos pedir mayor resolución
-// cambiando el parámetro zoom o añadiendo fife=w800.
-//
+// ─── Google Books ─────────────────────────────────────────────────────────────
 function upgradeGoogleCoverUrl(url: string): string {
-  if (!url) return url
-  // Pasar a HTTPS
   url = url.replace('http://', 'https://')
-  // Eliminar zoom=1 (thumbnail) y pedir tamaño mayor
   url = url.replace('&zoom=1', '').replace('zoom=1&', '').replace('?zoom=1', '?')
-  // Añadir fife=w600 para pedir 600px de ancho
-  if (!url.includes('fife=')) {
-    url += url.includes('?') ? '&fife=w600' : '?fife=w600'
-  }
+  if (!url.includes('fife=')) url += (url.includes('?') ? '&' : '?') + 'fife=w600'
   return url
 }
 
-// ─── Google Books search (primaria, buenas portadas) ─────────────────────────
 async function searchGoogleBooks(query: string): Promise<GoogleBook[]> {
   try {
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_BOOKS_API_KEY
     const keyParam = apiKey ? `&key=${apiKey}` : ''
-    const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=12&printType=books${keyParam}`
-
-    const res = await fetch(url)
+    const res = await fetch(
+      `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=12&printType=books${keyParam}`
+    )
     if (!res.ok) return []
-
     const data = await res.json()
     if (!data.items) return []
 
     return data.items.map((item: any): GoogleBook => {
-      const identifiers = item.volumeInfo.industryIdentifiers || []
-      const isbn13 = identifiers.find((id: any) => id.type === 'ISBN_13')?.identifier
-      const isbn10 = identifiers.find((id: any) => id.type === 'ISBN_10')?.identifier
-
-      const imageLinks = item.volumeInfo.imageLinks
-      const rawImage =
-        imageLinks?.extraLarge ||
-        imageLinks?.large ||
-        imageLinks?.medium ||
-        imageLinks?.thumbnail
-
+      const ids = item.volumeInfo.industryIdentifiers || []
+      const isbn13 = ids.find((x: any) => x.type === 'ISBN_13')?.identifier
+      const isbn10 = ids.find((x: any) => x.type === 'ISBN_10')?.identifier
+      const links = item.volumeInfo.imageLinks
+      const raw = links?.extraLarge || links?.large || links?.medium || links?.thumbnail
       return {
         id: item.id,
         title: item.volumeInfo.title || 'Sin título',
@@ -86,23 +65,21 @@ async function searchGoogleBooks(query: string): Promise<GoogleBook[]> {
         pageCount: item.volumeInfo.pageCount,
         publishedDate: item.volumeInfo.publishedDate,
         categories: item.volumeInfo.categories,
-        isbn10,
         isbn13,
-        googleImageLink: rawImage ? upgradeGoogleCoverUrl(rawImage) : undefined,
+        isbn10,
+        googleImageLink: raw ? upgradeGoogleCoverUrl(raw) : undefined,
       }
     })
-  } catch {
-    return []
-  }
+  } catch { return [] }
 }
 
-// ─── Open Library search (fallback si Google Books falla) ────────────────────
+// ─── Open Library ─────────────────────────────────────────────────────────────
 async function searchOpenLibrary(query: string): Promise<GoogleBook[]> {
   try {
-    const url = `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=12&fields=key,title,author_name,number_of_pages_median,isbn,cover_i,first_publish_year`
-    const res = await fetch(url)
+    const res = await fetch(
+      `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=12&fields=key,title,author_name,number_of_pages_median,isbn,cover_i,first_publish_year`
+    )
     if (!res.ok) return []
-
     const data = await res.json()
     if (!data.docs?.length) return []
 
@@ -110,21 +87,17 @@ async function searchOpenLibrary(query: string): Promise<GoogleBook[]> {
       .filter((doc: any) => doc.title && doc.author_name?.length)
       .map((doc: any, i: number): GoogleBook => {
         const isbns: string[] = doc.isbn || []
-        const isbn13 = isbns.find((id: string) => id.length === 13)
-        const isbn10 = isbns.find((id: string) => id.length === 10)
+        const isbn13 = isbns.find((x: string) => x.length === 13)
+        const isbn10 = isbns.find((x: string) => x.length === 10)
         const coverId: number | undefined = doc.cover_i
 
         let cover: string | undefined
-        if (coverId) {
-          cover = `https://covers.openlibrary.org/b/id/${coverId}-L.jpg`
-        } else if (isbn13) {
-          cover = `https://covers.openlibrary.org/b/isbn/${isbn13}-L.jpg`
-        } else if (isbn10) {
-          cover = `https://covers.openlibrary.org/b/isbn/${isbn10}-L.jpg`
-        }
+        if (coverId) cover = `https://covers.openlibrary.org/b/id/${coverId}-L.jpg`
+        else if (isbn13) cover = `https://covers.openlibrary.org/b/isbn/${isbn13}-L.jpg`
+        else if (isbn10) cover = `https://covers.openlibrary.org/b/isbn/${isbn10}-L.jpg`
 
         return {
-          id: doc.key || `ol-${i}`,
+          id: `ol-${doc.key || i}`,
           title: doc.title,
           authors: doc.author_name,
           pageCount: doc.number_of_pages_median,
@@ -134,20 +107,56 @@ async function searchOpenLibrary(query: string): Promise<GoogleBook[]> {
           googleImageLink: cover,
         }
       })
-  } catch {
-    return []
+  } catch { return [] }
+}
+
+// ─── Merge: desduplicar por ISBN, Google Books tiene preferencia ──────────────
+function mergeResults(google: GoogleBook[], openLib: GoogleBook[]): GoogleBook[] {
+  // Índice de ISBNs ya presentes desde Google Books
+  const seenIsbns = new Set<string>()
+  const seenTitles = new Set<string>()
+
+  for (const book of google) {
+    if (book.isbn13) seenIsbns.add(book.isbn13)
+    if (book.isbn10) seenIsbns.add(book.isbn10)
+    seenTitles.add(normalizeTitle(book.title))
   }
+
+  // Solo añadir resultados de OL que no estén ya en Google Books
+  const uniqueOL = openLib.filter(book => {
+    if (book.isbn13 && seenIsbns.has(book.isbn13)) return false
+    if (book.isbn10 && seenIsbns.has(book.isbn10)) return false
+    // Deduplicar también por título normalizado por si no tienen ISBN
+    const t = normalizeTitle(book.title)
+    if (seenTitles.has(t)) return false
+    seenTitles.add(t)
+    return true
+  })
+
+  // Intercalar: 2 Google, 1 OL, 2 Google, 1 OL… para mezclar portadas
+  const merged: GoogleBook[] = []
+  let gi = 0, oi = 0
+  while (gi < google.length || oi < uniqueOL.length) {
+    if (gi < google.length) merged.push(google[gi++])
+    if (gi < google.length) merged.push(google[gi++])
+    if (oi < uniqueOL.length) merged.push(uniqueOL[oi++])
+  }
+
+  return merged
+}
+
+function normalizeTitle(title: string): string {
+  return title.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 30)
 }
 
 // ─── API pública ──────────────────────────────────────────────────────────────
 
 /**
- * Busca libros con Google Books (buenas portadas) y caché.
- * Si Google Books falla, usa Open Library como fallback.
- *
- * Lo que antes mataba la quota NO era el search en sí sino los
- * checkImageUrl() que hacían 3-4 peticiones HEAD por libro.
- * Eso está eliminado — ahora solo 1 petición por búsqueda.
+ * Búsqueda híbrida en paralelo:
+ * - Google Books: portadas de alta calidad
+ * - Open Library: más variedad, sin rate limit
+ * Los resultados se mezclan e intercalan, deduplicando por ISBN.
+ * 1 petición a cada API → máximo 2 peticiones por búsqueda, con caché.
  */
 export async function searchBooks(query: string): Promise<GoogleBook[]> {
   if (!query || query.length < 3) return []
@@ -156,36 +165,31 @@ export async function searchBooks(query: string): Promise<GoogleBook[]> {
   const cached = getCached(cacheKey)
   if (cached) return cached
 
-  let results = await searchGoogleBooks(query)
+  // Buscar en paralelo — si una falla, la otra sigue
+  const [googleResults, olResults] = await Promise.allSettled([
+    searchGoogleBooks(query),
+    searchOpenLibrary(query),
+  ])
 
-  // Fallback si Google Books no responde o está sin quota
-  if (results.length === 0) {
-    results = await searchOpenLibrary(query)
-  }
+  const google = googleResults.status === 'fulfilled' ? googleResults.value : []
+  const openLib = olResults.status === 'fulfilled' ? olResults.value : []
 
+  const results = mergeResults(google, openLib)
   setCache(cacheKey, results)
   return results
 }
 
-/**
- * Devuelve la URL de portada de forma sincrónica.
- * Sin ninguna petición HTTP — los errores se manejan con onError en <img>.
- */
-export function getCoverUrlSync(
-  book: GoogleBook,
-  _size: 'S' | 'M' | 'L' = 'L'
-): string | null {
+export function getCoverUrlSync(book: GoogleBook, _size: 'S' | 'M' | 'L' = 'L'): string | null {
   return book.googleImageLink || null
 }
 
-// Compatibilidad con código existente (sin peticiones adicionales)
+// Compatibilidad con código existente
 export async function getBookCover(book: GoogleBook, size: 'S' | 'M' | 'L' = 'L'): Promise<string | null> {
   return getCoverUrlSync(book, size)
 }
 
-export async function getBestCover(_title: string, _author: string, isbn?: string): Promise<string | null> {
-  if (isbn) return `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg`
-  return null
+export async function getBestCover(_t: string, _a: string, isbn?: string): Promise<string | null> {
+  return isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg` : null
 }
 
 export async function getGoogleBooksCover(isbn: string): Promise<string | null> {
