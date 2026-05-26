@@ -58,7 +58,7 @@ export async function createBook(formData: FormData) {
 export async function updateBook(id: string, formData: FormData) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  
+
   if (!user) {
     return { error: 'No autenticado' }
   }
@@ -66,37 +66,26 @@ export async function updateBook(id: string, formData: FormData) {
   const ratingValue = formData.get('rating') as string
   const rating = ratingValue && ratingValue !== '' ? parseFloat(ratingValue) : null
 
-  const updateData: {
-    title: string
-    author: string
-    status: string
-    pages: number | null
-    current_page: number | null
-    rating: number | null
-    notes: string | null
-    favorite: boolean
-    started_at?: string | null
-    completed_at?: string | null
-  } = {
+  // Fechas: convertir string vacío a null explícitamente.
+  // Siempre se incluyen en el update para que un campo que se borra
+  // en el formulario también se borre en la BD.
+  const startedAtRaw = formData.get('started_at') as string | null
+  const completedAtRaw = formData.get('completed_at') as string | null
+  const started_at = startedAtRaw?.trim() || null
+  const completed_at = completedAtRaw?.trim() || null
+
+  const updateData = {
     title: formData.get('title') as string,
     author: formData.get('author') as string,
     status: formData.get('status') as string,
     pages: formData.get('pages') ? parseInt(formData.get('pages') as string) : null,
     current_page: formData.get('current_page') ? parseInt(formData.get('current_page') as string) : null,
-    rating: rating,
-    notes: formData.get('notes') as string || null,
+    rating,
+    notes: (formData.get('notes') as string) || null,
     favorite: formData.get('favorite') === 'true',
-  }
-
-  // Actualizar fechas si se proporcionan
-  const startedAtValue = formData.get('started_at') as string
-  const completedAtValue = formData.get('completed_at') as string
-  
-  if (startedAtValue) {
-    updateData.started_at = startedAtValue
-  }
-  if (completedAtValue) {
-    updateData.completed_at = completedAtValue
+    // Siempre incluidas — null limpia el campo, string lo actualiza
+    started_at,
+    completed_at,
   }
 
   const { error } = await supabase

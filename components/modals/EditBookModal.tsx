@@ -21,16 +21,25 @@ type Book = {
   completed_at?: string | null
 }
 
-export function EditBookModal({ 
-  book, 
-  isOpen, 
-  onClose 
-}: { 
+function toDateInput(dateString: string | null | undefined): string {
+  if (!dateString) return ""
+  // Parsear sin conversión de zona horaria: coger solo YYYY-MM-DD
+  return dateString.slice(0, 10)
+}
+
+export function EditBookModal({
+  book,
+  isOpen,
+  onClose,
+}: {
   book: Book
   isOpen: boolean
-  onClose: () => void 
+  onClose: () => void
 }) {
   const [loading, setLoading] = useState(false)
+  // Campos controlados para evitar el problema de defaultValue en inputs de fecha
+  const [startedAt, setStartedAt] = useState(toDateInput(book.started_at))
+  const [completedAt, setCompletedAt] = useState(toDateInput(book.completed_at))
 
   if (!isOpen) return null
 
@@ -39,27 +48,27 @@ export function EditBookModal({
     setLoading(true)
 
     const formData = new FormData(e.currentTarget)
+
+    // Sobreescribir con los valores controlados para garantizar que se envían
+    // aunque el browser no haya inicializado bien el input[type=date]
+    formData.set("started_at", startedAt)
+    formData.set("completed_at", completedAt)
+
     const result = await updateBook(book.id, formData)
 
     if (result.error) {
       toast.error(result.error)
     } else {
-      toast.success('¡Libro actualizado!')
+      toast.success("¡Libro actualizado!")
       onClose()
     }
 
     setLoading(false)
   }
 
-  // Formatear fechas para el input date
-  const formatDateForInput = (dateString: string | null | undefined) => {
-    if (!dateString) return ""
-    return new Date(dateString).toISOString().split('T')[0]
-  }
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
-      <div 
+      <div
         className="absolute inset-0 bg-black/30 backdrop-blur-sm"
         onClick={onClose}
       />
@@ -67,12 +76,8 @@ export function EditBookModal({
       <div className="relative bg-white rounded-2xl shadow-elevated max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-scale-in">
         <div className="sticky top-0 bg-white border-b border-ink-100 px-8 py-6 flex items-center justify-between z-10">
           <div>
-            <h2 className="text-heading-3 font-serif text-ink-900">
-              Editar Libro
-            </h2>
-            <p className="text-sm text-ink-500 mt-1">
-              Actualiza la información del libro
-            </p>
+            <h2 className="text-heading-3 font-serif text-ink-900">Editar Libro</h2>
+            <p className="text-sm text-ink-500 mt-1">Actualiza la información del libro</p>
           </div>
           <button
             onClick={onClose}
@@ -86,9 +91,7 @@ export function EditBookModal({
           <div className="space-y-6">
             <div className="grid md:grid-cols-2 gap-6">
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-ink-700 mb-2">
-                  Título *
-                </label>
+                <label className="block text-sm font-medium text-ink-700 mb-2">Título *</label>
                 <input
                   type="text"
                   name="title"
@@ -99,9 +102,7 @@ export function EditBookModal({
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-ink-700 mb-2">
-                  Autor *
-                </label>
+                <label className="block text-sm font-medium text-ink-700 mb-2">Autor *</label>
                 <input
                   type="text"
                   name="author"
@@ -112,14 +113,8 @@ export function EditBookModal({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-ink-700 mb-2">
-                  Estado
-                </label>
-                <select 
-                  name="status" 
-                  defaultValue={book.status}
-                  className="input-elegant"
-                >
+                <label className="block text-sm font-medium text-ink-700 mb-2">Estado</label>
+                <select name="status" defaultValue={book.status} className="input-elegant">
                   <option value="to_read">Por leer</option>
                   <option value="reading">Leyendo</option>
                   <option value="completed">Completado</option>
@@ -127,9 +122,7 @@ export function EditBookModal({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-ink-700 mb-2">
-                  Número de páginas
-                </label>
+                <label className="block text-sm font-medium text-ink-700 mb-2">Número de páginas</label>
                 <input
                   type="number"
                   name="pages"
@@ -139,9 +132,7 @@ export function EditBookModal({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-ink-700 mb-2">
-                  Página actual
-                </label>
+                <label className="block text-sm font-medium text-ink-700 mb-2">Página actual</label>
                 <input
                   type="number"
                   name="current_page"
@@ -151,11 +142,9 @@ export function EditBookModal({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-ink-700 mb-2">
-                  Favorito
-                </label>
-                <select 
-                  name="favorite" 
+                <label className="block text-sm font-medium text-ink-700 mb-2">Favorito</label>
+                <select
+                  name="favorite"
                   defaultValue={book.favorite ? "true" : "false"}
                   className="input-elegant"
                 >
@@ -164,44 +153,36 @@ export function EditBookModal({
                 </select>
               </div>
 
+              {/* Fechas: inputs CONTROLADOS para que FormData siempre tenga el valor correcto */}
               <div>
-                <label className="block text-sm font-medium text-ink-700 mb-2">
-                  Fecha de inicio
-                </label>
+                <label className="block text-sm font-medium text-ink-700 mb-2">Fecha de inicio</label>
                 <input
                   type="date"
                   name="started_at"
-                  defaultValue={formatDateForInput(book.started_at)}
+                  value={startedAt}
+                  onChange={(e) => setStartedAt(e.target.value)}
                   className="input-elegant"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-ink-700 mb-2">
-                  Fecha de finalización
-                </label>
+                <label className="block text-sm font-medium text-ink-700 mb-2">Fecha de finalización</label>
                 <input
                   type="date"
                   name="completed_at"
-                  defaultValue={formatDateForInput(book.completed_at)}
+                  value={completedAt}
+                  onChange={(e) => setCompletedAt(e.target.value)}
                   className="input-elegant"
                 />
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-ink-700 mb-2">
-                  Puntuación (opcional)
-                </label>
-                <RatingInput 
-                  name="rating" 
-                  value={book.rating}
-                />
+                <label className="block text-sm font-medium text-ink-700 mb-2">Puntuación (opcional)</label>
+                <RatingInput name="rating" value={book.rating} />
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-ink-700 mb-2">
-                  Notas (opcional)
-                </label>
+                <label className="block text-sm font-medium text-ink-700 mb-2">Notas (opcional)</label>
                 <textarea
                   name="notes"
                   rows={4}
@@ -213,19 +194,11 @@ export function EditBookModal({
             </div>
 
             <div className="flex gap-3 justify-end pt-4 border-t border-ink-100">
-              <button
-                type="button"
-                onClick={onClose}
-                className="btn-ghost"
-              >
+              <button type="button" onClick={onClose} className="btn-ghost">
                 Cancelar
               </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="btn-primary"
-              >
-                {loading ? 'Guardando...' : 'Guardar cambios'}
+              <button type="submit" disabled={loading} className="btn-primary">
+                {loading ? "Guardando..." : "Guardar cambios"}
               </button>
             </div>
           </div>
