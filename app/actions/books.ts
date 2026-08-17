@@ -34,6 +34,8 @@ export async function createBook(formData: FormData) {
 
   const ratingValue = formData.get('rating') as string
   const rating = ratingValue && ratingValue !== '' ? parseFloat(ratingValue) : null
+  const startedAtRaw = formData.get('started_at') as string | null
+  const completedAtRaw = formData.get('completed_at') as string | null
 
   // ↓ nuevo: si la portada es un hotlink externo, la espejamos a tu bucket
   let coverUrl = (formData.get('cover_url') as string) || null
@@ -52,6 +54,8 @@ export async function createBook(formData: FormData) {
     cover_url: coverUrl, // ← usa la variable en vez de leer el formData directo
     notes: formData.get('notes') as string || null,
     rating: rating,
+    started_at: startedAtRaw?.trim() || null,
+    completed_at: completedAtRaw?.trim() || null,
   }
 
   const { error } = await supabase.from('books').insert(bookData)
