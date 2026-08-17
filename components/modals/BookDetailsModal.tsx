@@ -153,10 +153,12 @@ export function BookDetailsModal({
                   <span className={`badge ${
                     book.status === 'reading' ? 'badge-reading' :
                     book.status === 'completed' ? 'badge-completed' :
+                    book.status === 'dropped' ? 'badge-dropped' :
                     'badge-to-read'
                   }`}>
                     {book.status === 'reading' ? 'Leyendo' :
                      book.status === 'completed' ? 'Completado' :
+                     book.status === 'dropped' ? 'Dropeado' :
                      'Por leer'}
                   </span>
                 </div>

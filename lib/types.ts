@@ -11,7 +11,7 @@ export type Book = {
   user_id: string
   title: string
   author: string
-  status: 'to_read' | 'reading' | 'completed'
+  status: 'to_read' | 'reading' | 'completed' | 'dropped'
   rating: number | null
   pages: number | null
   current_page: number | null
@@ -28,8 +28,9 @@ export type BookStats = {
   total: number
   reading: number
   completed: number
+  dropped: number
   toRead: number
   favorites: number
   totalPages: number
   pagesRead: number
-} 
+}

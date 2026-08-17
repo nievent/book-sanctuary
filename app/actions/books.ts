@@ -177,6 +177,7 @@ export async function getBookStats() {
   const total = books.length
   const reading = books.filter(b => b.status === 'reading').length
   const completed = books.filter(b => b.status === 'completed').length
+  const dropped = books.filter(b => b.status === 'dropped').length
   const toRead = books.filter(b => b.status === 'to_read').length
   const favorites = books.filter(b => b.favorite).length
   
@@ -189,6 +190,7 @@ export async function getBookStats() {
     total,
     reading,
     completed,
+    dropped,
     toRead,
     favorites,
     totalPages,

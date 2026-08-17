@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation"
-import { Search, Users } from "lucide-react"
+import Link from "next/link"
+import { ArrowRight, Search, Users } from "lucide-react"
 import { getUser } from "@/app/actions/auth"
 import { searchUsersByProfileName } from "@/app/actions/social"
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader"
-import { ReadOnlyBookCard } from "@/components/users/ReadOnlyBookCard"
 import type { User } from "@/lib/types"
 
 type UsersPageProps = {
@@ -21,7 +21,7 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
 
   const { q } = await searchParams
   const query = q?.trim() ?? ""
-  const search = query.length >= 2 ? await searchUsersByProfileName(query) : { results: [] }
+  const search = await searchUsersByProfileName(query)
 
   return (
     <div className="min-h-screen bg-cream-50">
@@ -33,7 +33,7 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
             Buscar Usuarios
           </h1>
           <p className="text-body-lg text-ink-600">
-            Encuentra perfiles por nombre y consulta sus libros en modo lectura.
+            Busca por nombre o elige uno de los perfiles disponibles.
           </p>
         </section>
 
@@ -45,8 +45,7 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
                 type="search"
                 name="q"
                 defaultValue={query}
-                minLength={2}
-                placeholder="Nombre de perfil"
+                placeholder="Nombre de perfil (coincidencias parciales)"
                 className="input-elegant pl-12"
               />
             </div>
@@ -66,13 +65,7 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
           </section>
         )}
 
-        {!search.error && query.length > 0 && query.length < 2 && (
-          <section className="card-subtle text-center py-10">
-            <p className="text-ink-600">Escribe al menos 2 caracteres para buscar.</p>
-          </section>
-        )}
-
-        {!search.error && query.length >= 2 && search.results.length === 0 && (
+        {!search.error && query.length > 0 && search.results.length === 0 && (
           <section className="card text-center py-16">
             <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-sage-100 flex items-center justify-center">
               <Users className="w-10 h-10 text-sage-600" />
@@ -85,32 +78,27 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
         )}
 
         {!search.error && search.results.length > 0 && (
-          <section className="space-y-8">
+          <section>
+            <div className="mb-5 flex items-baseline justify-between gap-4">
+              <h2 className="text-heading-3 font-serif text-ink-900">
+                {query ? "Perfiles coincidentes" : "Usuarios disponibles"}
+              </h2>
+              <p className="text-sm text-ink-500">{search.results.length} perfiles</p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {search.results.map((result) => (
-              <div key={result.id} className="space-y-4 animate-in">
-                <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
+              <Link key={result.id} href={`/users/${result.id}`} className="card group animate-in transition-all hover:-translate-y-0.5 hover:shadow-elevated">
+                <div className="flex items-start justify-between gap-4">
                   <div>
                     <h2 className="text-heading-3 font-serif text-ink-900">{result.name}</h2>
                     {result.email && <p className="text-sm text-ink-500">{result.email}</p>}
                   </div>
-                  <p className="text-sm text-ink-600">
-                    {result.books.length} {result.books.length === 1 ? "libro" : "libros"}
-                  </p>
+                  <ArrowRight className="mt-1 h-5 w-5 shrink-0 text-ink-400 transition-transform group-hover:translate-x-1" />
                 </div>
-
-                {result.books.length > 0 ? (
-                  <div className="grid lg:grid-cols-2 gap-5">
-                    {result.books.map((book) => (
-                      <ReadOnlyBookCard key={book.id} book={book} />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="card-subtle py-8 text-center">
-                    <p className="text-ink-600">Este usuario aun no tiene libros.</p>
-                  </div>
-                )}
-              </div>
+                <p className="mt-5 text-sm text-ink-600">{result.books.length} {result.books.length === 1 ? "libro" : "libros"} en su biblioteca</p>
+              </Link>
             ))}
+            </div>
           </section>
         )}
       </main>

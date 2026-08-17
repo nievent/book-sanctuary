@@ -63,6 +63,10 @@ export async function getRecommendations({
     .join("\n");
 
   const allOwned = books.map((b) => `"${b.title}" de ${b.author}`).join(", ");
+  const droppedBooks = books
+    .filter((b) => b.status === "dropped")
+    .map((b) => `- "${b.title}" de ${b.author}`)
+    .join("\n");
 
   const genreLine =
     genre !== "all"
@@ -80,6 +84,7 @@ LIBROS LEÍDOS Y VALORADOS (de mayor a menor puntuación):
 ${topRated}
 
 ${lowRated ? `LIBROS QUE NO LE GUSTARON (puntuación baja, evitar similares):\n${lowRated}\n` : ""}
+${droppedBooks ? `LIBROS ABANDONADOS (no recomiendes estos títulos ni libros similares):\n${droppedBooks}\n` : ""}
 LIBROS QUE YA TIENE (no recomendar ninguno de estos): ${allOwned}
 
 ${genreLine}

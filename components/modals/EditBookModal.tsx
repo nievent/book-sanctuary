@@ -220,6 +220,7 @@ export function EditBookModal({
                   <option value="to_read">Por leer</option>
                   <option value="reading">Leyendo</option>
                   <option value="completed">Completado</option>
+                  <option value="dropped">Dropeado</option>
                 </select>
               </div>
 

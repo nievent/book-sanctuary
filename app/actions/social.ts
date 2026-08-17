@@ -15,6 +15,7 @@ export type PublicUserBook = Pick<
   | "pages"
   | "current_page"
   | "cover_url"
+  | "notes"
   | "favorite"
   | "started_at"
   | "completed_at"
@@ -26,6 +27,12 @@ export type UserSearchResult = {
   id: string
   name: string
   email?: string
+  books: PublicUserBook[]
+}
+
+export type PublicUserProfile = {
+  id: string
+  name: string
   books: PublicUserBook[]
 }
 
@@ -44,10 +51,6 @@ function getProfileName(user: SupabaseUser) {
 
 export async function searchUsersByProfileName(query: string): Promise<SearchUsersResponse> {
   const normalizedQuery = query.trim().toLowerCase()
-
-  if (normalizedQuery.length < 2) {
-    return { results: [] }
-  }
 
   const supabase = await createClient()
   const {
@@ -71,7 +74,7 @@ export async function searchUsersByProfileName(query: string): Promise<SearchUse
 
   const matchedUsers: SupabaseUser[] = []
   const perPage = 100
-  const maxPages = 10
+  const maxPages = normalizedQuery ? 10 : 1
 
   for (let page = 1; page <= maxPages; page += 1) {
     const { data, error } = await admin.auth.admin.listUsers({ page, perPage })
@@ -81,11 +84,9 @@ export async function searchUsersByProfileName(query: string): Promise<SearchUse
     }
 
     const users = data.users ?? []
-    matchedUsers.push(
-      ...users.filter((candidate) =>
-        getProfileName(candidate).toLowerCase().includes(normalizedQuery)
-      )
-    )
+    matchedUsers.push(...users.filter((candidate) =>
+      !normalizedQuery || getProfileName(candidate).toLowerCase().includes(normalizedQuery)
+    ))
 
     if (users.length < perPage) break
   }
@@ -94,11 +95,12 @@ export async function searchUsersByProfileName(query: string): Promise<SearchUse
     return { results: [] }
   }
 
-  const userIds = matchedUsers.map((matchedUser) => matchedUser.id)
+  const visibleUsers = matchedUsers.slice(0, 24)
+  const userIds = visibleUsers.map((matchedUser) => matchedUser.id)
   const { data: books, error: booksError } = await admin
     .from("books")
     .select(
-      "id,title,author,status,rating,pages,current_page,cover_url,favorite,started_at,completed_at,created_at,updated_at,user_id"
+      "id,title,author,status,rating,pages,current_page,cover_url,notes,favorite,started_at,completed_at,created_at,updated_at,user_id"
     )
     .in("user_id", userIds)
     .order("created_at", { ascending: false })
@@ -108,7 +110,7 @@ export async function searchUsersByProfileName(query: string): Promise<SearchUse
   }
 
   return {
-    results: matchedUsers.map((matchedUser) => ({
+    results: visibleUsers.map((matchedUser) => ({
       id: matchedUser.id,
       name: getProfileName(matchedUser),
       email: matchedUser.email,
@@ -116,5 +118,43 @@ export async function searchUsersByProfileName(query: string): Promise<SearchUse
         .filter((book) => book.user_id === matchedUser.id)
         .map(({ user_id: _userId, ...book }) => book),
     })),
+  }
+}
+
+export async function getPublicUserProfile(id: string): Promise<{
+  profile?: PublicUserProfile
+  error?: string
+  configRequired?: boolean
+}> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) return { error: "No autenticado" }
+
+  const admin = createAdminClient()
+  if (!admin) {
+    return {
+      configRequired: true,
+      error: "Para consultar perfiles necesitas configurar SUPABASE_SERVICE_ROLE_KEY en el servidor.",
+    }
+  }
+
+  const { data: userData, error: userError } = await admin.auth.admin.getUserById(id)
+  if (userError || !userData.user) return { error: "Usuario no encontrado" }
+
+  const { data: books, error: booksError } = await admin
+    .from("books")
+    .select("id,title,author,status,rating,pages,current_page,cover_url,notes,favorite,started_at,completed_at,created_at,updated_at")
+    .eq("user_id", id)
+    .order("created_at", { ascending: false })
+
+  if (booksError) return { error: booksError.message }
+
+  return {
+    profile: {
+      id: userData.user.id,
+      name: getProfileName(userData.user),
+      books: books ?? [],
+    },
   }
 }

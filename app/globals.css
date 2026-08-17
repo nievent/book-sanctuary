@@ -95,6 +95,10 @@
     color: #292524;
   }
 
+  .badge-dropped {
+    @apply bg-rose-100 text-rose-700 border border-rose-200;
+  }
+
   /* Separador elegante */
   .divider {
     @apply h-px bg-gradient-to-r from-transparent via-ink-200 to-transparent;

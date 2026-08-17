@@ -14,6 +14,7 @@ export type FilterBarProps = {
     total: number
     reading: number
     completed: number
+    dropped: number
     toRead: number
   } | null
 }
@@ -34,6 +35,7 @@ export function FilterBar({
     { id: 'reading', label: 'Leyendo', count: stats?.reading || 0 },
     { id: 'completed', label: 'Completados', count: stats?.completed || 0 },
     { id: 'to_read', label: 'Por leer', count: stats?.toRead || 0 },
+    { id: 'dropped', label: 'Dropeados', count: stats?.dropped || 0 },
   ]
 
   const sortOptions = [

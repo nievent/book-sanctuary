@@ -25,6 +25,7 @@ type BookStats = {
   total: number
   reading: number
   completed: number
+  dropped: number
   toRead: number
 }
 
