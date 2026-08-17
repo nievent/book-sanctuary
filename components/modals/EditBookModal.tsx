@@ -1,10 +1,12 @@
 "use client"
 
-import { X } from "lucide-react"
+import { Loader2, Search, X } from "lucide-react"
 import { updateBook } from "@/app/actions/books"
 import { toast } from "sonner"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { RatingInput } from "@/components/ui/RatingInput"
+import { CoverInput } from "@/components/modals/AddBookModal"
+import { getCoverUrlSync, GoogleBook, searchBooks } from "@/lib/google-books"
 
 type Book = {
   id: string
@@ -37,9 +39,23 @@ export function EditBookModal({
   onClose: () => void
 }) {
   const [loading, setLoading] = useState(false)
+  const [coverUrl, setCoverUrl] = useState<string | null>(book.cover_url)
+  const [coverSearchQuery, setCoverSearchQuery] = useState("")
+  const [coverSearchResults, setCoverSearchResults] = useState<GoogleBook[]>([])
+  const [searchingCovers, setSearchingCovers] = useState(false)
   // Campos controlados para evitar el problema de defaultValue en inputs de fecha
   const [startedAt, setStartedAt] = useState(toDateInput(book.started_at))
   const [completedAt, setCompletedAt] = useState(toDateInput(book.completed_at))
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    setCoverUrl(book.cover_url)
+    setCoverSearchQuery(`${book.title} ${book.author}`)
+    setCoverSearchResults([])
+    setStartedAt(toDateInput(book.started_at))
+    setCompletedAt(toDateInput(book.completed_at))
+  }, [book, isOpen])
 
   if (!isOpen) return null
 
@@ -53,6 +69,7 @@ export function EditBookModal({
     // aunque el browser no haya inicializado bien el input[type=date]
     formData.set("started_at", startedAt)
     formData.set("completed_at", completedAt)
+    formData.set("cover_url", coverUrl || "")
 
     const result = await updateBook(book.id, formData)
 
@@ -64,6 +81,35 @@ export function EditBookModal({
     }
 
     setLoading(false)
+  }
+
+  async function handleCoverSearch() {
+    const query = coverSearchQuery.trim()
+    if (query.length < 3) {
+      toast.error("Escribe al menos 3 caracteres para buscar una portada")
+      return
+    }
+
+    setSearchingCovers(true)
+    try {
+      setCoverSearchResults(await searchBooks(query))
+    } catch {
+      toast.error("No se pudieron buscar portadas")
+    } finally {
+      setSearchingCovers(false)
+    }
+  }
+
+  function selectCover(result: GoogleBook) {
+    const cover = getCoverUrlSync(result, "L")
+    if (!cover) {
+      toast.error("Este resultado no tiene una portada disponible")
+      return
+    }
+
+    setCoverUrl(cover)
+    setCoverSearchResults([])
+    toast.success("Portada seleccionada")
   }
 
   return (
@@ -110,6 +156,62 @@ export function EditBookModal({
                   defaultValue={book.author}
                   className="input-elegant"
                 />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-ink-700 mb-2">Portada</label>
+                <div className="mb-3 rounded-lg border border-cream-200 bg-cream-50 p-3">
+                  <p className="mb-2 text-sm font-medium text-ink-700">Buscar portada en la API</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="search"
+                      value={coverSearchQuery}
+                      onChange={(e) => setCoverSearchQuery(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault()
+                          handleCoverSearch()
+                        }
+                      }}
+                      placeholder="Título, autor o ISBN"
+                      className="input-elegant min-w-0 flex-1 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleCoverSearch}
+                      disabled={searchingCovers}
+                      className="btn-ghost shrink-0"
+                    >
+                      {searchingCovers ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                      Buscar
+                    </button>
+                  </div>
+
+                  {coverSearchResults.length > 0 && (
+                    <div className="mt-3 grid max-h-72 grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3">
+                      {coverSearchResults.map((result, index) => {
+                        const resultCover = getCoverUrlSync(result, "M")
+                        return (
+                          <button
+                            key={`${result.id}-${index}`}
+                            type="button"
+                            onClick={() => selectCover(result)}
+                            className="flex gap-2 rounded-lg bg-white p-2 text-left transition-colors hover:bg-sage-50"
+                          >
+                            <div className="h-16 w-11 shrink-0 overflow-hidden rounded bg-cream-200">
+                              {resultCover ? <img src={resultCover} alt="" className="h-full w-full object-cover" /> : null}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="line-clamp-2 text-xs font-medium text-ink-900">{result.title}</p>
+                              <p className="mt-1 line-clamp-1 text-xs text-ink-500">{result.authors.join(", ")}</p>
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+                <CoverInput coverUrl={coverUrl} onChange={setCoverUrl} />
               </div>
 
               <div>

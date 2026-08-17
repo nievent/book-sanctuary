@@ -83,6 +83,7 @@ export async function updateBook(id: string, formData: FormData) {
     rating,
     notes: (formData.get('notes') as string) || null,
     favorite: formData.get('favorite') === 'true',
+    cover_url: (formData.get('cover_url') as string) || null,
     // Siempre incluidas — null limpia el campo, string lo actualiza
     started_at,
     completed_at,

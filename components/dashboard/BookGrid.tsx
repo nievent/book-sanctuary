@@ -30,7 +30,7 @@ type BookStats = {
 
 export function BookGrid({ books, stats }: { books: Book[], stats: BookStats | null }) {
   const [filter, setFilter] = useState('all')
-  const [sort, setSort] = useState('date_desc')
+  const [sort, setSort] = useState('completed_desc')
   const [search, setSearch] = useState('')
 
   // Filtrar por búsqueda
@@ -73,6 +73,7 @@ export function BookGrid({ books, stats }: { books: Book[], stats: BookStats | n
         return booksCopy.sort((a, b) => b.title.localeCompare(a.title))
       case 'completed_desc':
         return booksCopy.sort((a, b) => {
+          if (!a.completed_at && !b.completed_at) return 0
           if (!a.completed_at) return 1
           if (!b.completed_at) return -1
           return new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime()

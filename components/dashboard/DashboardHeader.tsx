@@ -1,7 +1,7 @@
 // components/dashboard/DashboardHeader.tsx
 "use client"
 
-import { Book, LogOut, User as UserIcon, BarChart3, Library, Trophy, Sparkles } from "lucide-react"
+import { Book, LogOut, User as UserIcon, BarChart3, Library, Trophy, Sparkles, Users } from "lucide-react"
 import { signOut } from "@/app/actions/auth"
 import { useState } from "react"
 import { usePathname } from "next/navigation"
@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { href: '/achievements',     label: 'Logros',            Icon: Trophy },
   { href: '/challenges',       label: 'Desafíos',          Icon: null },   // custom svg
   { href: '/recommendations',  label: 'Recomendaciones',   Icon: Sparkles },
+  { href: '/users',            label: 'Usuarios',          Icon: Users },
 ]
 
 export function DashboardHeader({ user }: { user: User }) {

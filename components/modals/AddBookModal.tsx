@@ -15,7 +15,7 @@ type CoverInputProps = {
   onChange: (url: string | null) => void
 }
 
-function CoverInput({ coverUrl, onChange }: CoverInputProps) {
+export function CoverInput({ coverUrl, onChange }: CoverInputProps) {
   const [mode, setMode] = useState<'url' | 'upload'>('url')
   const [urlValue, setUrlValue] = useState(coverUrl || '')
   const [uploading, setUploading] = useState(false)
