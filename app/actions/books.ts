@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
+import { isHotlinkedCover, mirrorCoverToStorage } from "@/lib/covers" // ← nuevo import
 
 export async function getBooks() {
   const supabase = await createClient()
@@ -34,13 +35,21 @@ export async function createBook(formData: FormData) {
   const ratingValue = formData.get('rating') as string
   const rating = ratingValue && ratingValue !== '' ? parseFloat(ratingValue) : null
 
+  // ↓ nuevo: si la portada es un hotlink externo, la espejamos a tu bucket
+  let coverUrl = (formData.get('cover_url') as string) || null
+  if (isHotlinkedCover(coverUrl)) {
+    const mirrored = await mirrorCoverToStorage(coverUrl!, supabase)
+    if (mirrored) coverUrl = mirrored
+    // si falla, seguimos con la URL externa como fallback — mejor eso que nada
+  }
+
   const bookData = {
     user_id: user.id,
     title: formData.get('title') as string,
     author: formData.get('author') as string,
     status: (formData.get('status') as string) || 'to_read',
     pages: formData.get('pages') ? parseInt(formData.get('pages') as string) : null,
-    cover_url: formData.get('cover_url') as string || null,
+    cover_url: coverUrl, // ← usa la variable en vez de leer el formData directo
     notes: formData.get('notes') as string || null,
     rating: rating,
   }
@@ -54,7 +63,6 @@ export async function createBook(formData: FormData) {
   revalidatePath('/dashboard')
   return { success: true }
 }
-
 export async function updateBook(id: string, formData: FormData) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
