@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
+import type { ProfileVisibility } from "@/lib/profile"
 
 export async function signIn(formData: FormData) {
   const supabase = await createClient()
@@ -57,4 +58,20 @@ export async function getUser() {
     data: { user },
   } = await supabase.auth.getUser()
   return user
+}
+
+export async function updateProfileVisibility(visibility: ProfileVisibility) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "No autenticado" }
+
+  const { error } = await supabase.auth.updateUser({
+    data: { ...user.user_metadata, profile_visibility: visibility },
+  })
+
+  if (error) return { error: error.message }
+
+  revalidatePath("/profile")
+  revalidatePath("/users")
+  return { success: true }
 }

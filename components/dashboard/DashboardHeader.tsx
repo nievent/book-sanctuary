@@ -1,7 +1,7 @@
 // components/dashboard/DashboardHeader.tsx
 "use client"
 
-import { Book, LogOut, User as UserIcon, BarChart3, Library, Trophy, Sparkles, Users } from "lucide-react"
+import { Book, LogOut, User as UserIcon, BarChart3, Library, Trophy, Sparkles, Users, Settings } from "lucide-react"
 import { signOut } from "@/app/actions/auth"
 import { useState } from "react"
 import { usePathname } from "next/navigation"
@@ -102,6 +102,10 @@ export function DashboardHeader({ user }: { user: User }) {
                       </Link>
                     ))}
                   </div>
+
+                  <Link href="/profile" onClick={() => setShowMenu(false)} className="flex items-center gap-3 px-4 py-2 text-sm text-ink-700 hover:bg-cream-50 transition-colors">
+                    <Settings className="w-4 h-4" /> Configurar perfil
+                  </Link>
 
                   <form action={signOut}>
                     <button

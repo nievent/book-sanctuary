@@ -45,6 +45,7 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
                 type="search"
                 name="q"
                 defaultValue={query}
+                minLength={2}
                 placeholder="Nombre de perfil (coincidencias parciales)"
                 className="input-elegant pl-12"
               />
@@ -65,7 +66,7 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
           </section>
         )}
 
-        {!search.error && query.length > 0 && search.results.length === 0 && (
+        {!search.error && query.length >= 2 && search.results.length === 0 && (
           <section className="card text-center py-16">
             <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-sage-100 flex items-center justify-center">
               <Users className="w-10 h-10 text-sage-600" />
@@ -77,11 +78,17 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
           </section>
         )}
 
+        {!search.error && query.length > 0 && query.length < 2 && (
+          <section className="card-subtle py-10 text-center">
+            <p className="text-ink-600">Escribe al menos 2 caracteres para buscar usuarios.</p>
+          </section>
+        )}
+
         {!search.error && search.results.length > 0 && (
           <section>
             <div className="mb-5 flex items-baseline justify-between gap-4">
               <h2 className="text-heading-3 font-serif text-ink-900">
-                {query ? "Perfiles coincidentes" : "Usuarios disponibles"}
+                Perfiles coincidentes
               </h2>
               <p className="text-sm text-ink-500">{search.results.length} perfiles</p>
             </div>
@@ -91,11 +98,10 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <h2 className="text-heading-3 font-serif text-ink-900">{result.name}</h2>
-                    {result.email && <p className="text-sm text-ink-500">{result.email}</p>}
                   </div>
                   <ArrowRight className="mt-1 h-5 w-5 shrink-0 text-ink-400 transition-transform group-hover:translate-x-1" />
                 </div>
-                <p className="mt-5 text-sm text-ink-600">{result.books.length} {result.books.length === 1 ? "libro" : "libros"} en su biblioteca</p>
+                <p className="mt-5 text-sm text-ink-600">{result.showBooks ? `${result.books.length} ${result.books.length === 1 ? "libro" : "libros"} en su biblioteca` : "Biblioteca privada"}</p>
               </Link>
             ))}
             </div>

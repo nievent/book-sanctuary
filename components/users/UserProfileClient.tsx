@@ -65,16 +65,18 @@ export function UserProfileClient({ profile }: { profile: PublicUserProfile }) {
               <h1 className="font-serif text-3xl font-semibold text-ink-900">{profile.name}</h1>
               <p className="mt-1 text-ink-600">Su rincón de lectura</p>
             </div>
-            <div className="flex gap-6 text-sm text-ink-600">
-              <span><strong className="text-lg text-ink-900">{profile.books.length}</strong> libros</span>
-              <span><strong className="text-lg text-ink-900">{profile.books.filter((book) => book.status === "completed").length}</strong> terminados</span>
-              {averageRating && <span className="inline-flex items-center gap-1"><Star className="h-4 w-4 fill-amber-400 text-amber-400" /><strong className="text-lg text-ink-900">{averageRating}</strong> media</span>}
-            </div>
+            {profile.visibility.showStats && (
+              <div className="flex gap-6 text-sm text-ink-600">
+                <span><strong className="text-lg text-ink-900">{profile.books.length}</strong> libros</span>
+                <span><strong className="text-lg text-ink-900">{profile.books.filter((book) => book.status === "completed").length}</strong> terminados</span>
+                {averageRating && <span className="inline-flex items-center gap-1"><Star className="h-4 w-4 fill-amber-400 text-amber-400" /><strong className="text-lg text-ink-900">{averageRating}</strong> media</span>}
+              </div>
+            )}
           </div>
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-2">
+      {profile.visibility.showStats && <section className="grid gap-6 lg:grid-cols-2">
         <div className="card h-80">
           <h2 className="mb-4 font-serif text-xl font-semibold text-ink-900">Biblioteca por estado</h2>
           {statusData.length ? (
@@ -91,9 +93,9 @@ export function UserProfileClient({ profile }: { profile: PublicUserProfile }) {
             </ResponsiveContainer>
           ) : <EmptyChart />}
         </div>
-      </section>
+      </section>}
 
-      <section className="space-y-5">
+      {profile.visibility.showBooks ? <section className="space-y-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div><h2 className="font-serif text-2xl font-semibold text-ink-900">Libros</h2><p className="text-sm text-ink-600">Selecciona una ficha para leer su comentario.</p></div>
           <div className="flex flex-wrap gap-2">
@@ -106,7 +108,7 @@ export function UserProfileClient({ profile }: { profile: PublicUserProfile }) {
           </div>
         </div>
         {books.length ? <div className="grid gap-5 lg:grid-cols-2">{books.map((book) => <ReadOnlyBookCard key={book.id} book={book} />)}</div> : <div className="card-subtle py-12 text-center text-ink-600">No hay libros con este filtro.</div>}
-      </section>
+      </section> : <section className="card-subtle py-12 text-center text-ink-600">Esta persona ha mantenido su biblioteca privada.</section>}
     </main>
   )
 }
